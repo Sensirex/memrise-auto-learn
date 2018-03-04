@@ -140,11 +140,12 @@ $(document).ready(function() {
 								}
 								var correct_item=MEMRISE.garden.box.testData.correct[correct_idx];
 								for(var j in correct_item){
-									for(var i in elements)
-										if(typeof(elements[i])=='object'&&elements[i].dataset!=undefined&&elements[i].dataset.word==correct_item[j]){
+									for(var i in elements){
+										if(typeof(elements[i])=='object'&&elements[i].dataset!=undefined&&elements[i].dataset.word==correct_item[j]&&!elements[i].classList.contains('active')){
 											elements[i].click();
 											break;
 										}
+									}
 								}
 							},response_timeout);
 						}
