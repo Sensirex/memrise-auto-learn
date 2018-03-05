@@ -11,8 +11,8 @@
 $(document).ready(function() {
 	var g = MEMRISE.garden,
         forceEnd = false,
-		response_timeout=600;
-		
+		response_timeout=500;
+	var grown_items=[];
 	function fetchMore(callback) {
         $.getJSON("https://www.memrise.com/ajax/session/", g.session_params)
         .done(function( response ) {
@@ -57,7 +57,7 @@ $(document).ready(function() {
             callback();
     	});
     }
-		
+
 	function getValue(formData, name) {
 	    var regex = new RegExp(name + "=([^&]+)");
 	    var match = (formData || "").match(regex);
@@ -103,15 +103,18 @@ $(document).ready(function() {
 					var self = this,
 	                    prevBox = this._list[this.num - 1],
 	                    box = (prevBox && prevBox.autoLearn) ? _.find(this._list.slice(this.num), l => l.learnable_id !== prevBox.learnable_id) : this._list[this.num];
-					
+
 					// console.log('MEMRISE.garden.boxes.activate_box');
 					var give_answer=function(){
 		                clearAutoLearnedFutures();
-		                var canAutoLearn = MEMRISE.garden.boxes.current().learn_session_level < 6;
-		                console.log('can auto learn: '+(canAutoLearn?'yes':'no'));
-		                if(canAutoLearn) {
-							MEMRISE.garden.boxes.current().autoLearn=true;
-		                }
+		                // var canAutoLearn = MEMRISE.garden.boxes.current().learn_session_level < 6;
+		                // console.log('can auto learn: '+(canAutoLearn?'yes':'no'));
+		                // if(canAutoLearn) {
+						// if((['typing','tapping','multiple_choice']).indexOf(MEMRISE.garden.box.template)) {
+						// 	MEMRISE.garden.boxes.current().autoLearn=true;
+		                // }
+						// else
+						// 	MEMRISE.garden.boxes.current().autoLearn=false;
 						// console.log(MEMRISE.garden.box.template);
 		                if(MEMRISE.garden.box.template=='presentation'){
 							setTimeout(function(){
@@ -119,7 +122,7 @@ $(document).ready(function() {
 							},response_timeout);
 							// console.log('clicked');
 						}
-						
+
 						if(MEMRISE.garden.box.template=='tapping'){
 							setTimeout(function(){
 								var elements=MEMRISE.garden.box.$elem.find('.word-box.word-box-choice .word.btn');
@@ -149,7 +152,7 @@ $(document).ready(function() {
 								}
 							},response_timeout);
 						}
-						
+
 						if(MEMRISE.garden.box.template=='audio-multiple-choice'){
 							setTimeout(function(){
 								var elements=MEMRISE.garden.box.$elem.find('.audio-choices .audio-choice.js-audio-choice');
@@ -169,7 +172,7 @@ $(document).ready(function() {
 			                    MEMRISE.garden.box.$choices.find('[data-choice-id="'+ch+'"]').click();
 							},response_timeout);
 		                }
-						
+
 		                if(MEMRISE.garden.box.template=='typing'||MEMRISE.garden.box.template=='audio-typing'){
 							setTimeout(function(){
 			                    MEMRISE.garden.box.$input.input.val(MEMRISE.garden.box.testData.correct[0]);
@@ -184,7 +187,7 @@ $(document).ready(function() {
 	                    result=cached_function.apply(self, arguments);
 						give_answer();
 	                }
-					
+
 	                return result;
 	            };
 	        }());
@@ -194,30 +197,30 @@ $(document).ready(function() {
 	}());
 
 	$(document).ajaxSuccess(
-	    function(event, request, settings) {
-			// console.log('ajaxSuccess');
-	        var thinguser = request.responseJSON && request.responseJSON.thinguser,
-	            correctAnswer = getValue(settings.data, "score") === "1",
-	            canUpdate = getValue(settings.data, "update_scheduling") !== "false",
-	            box = thinguser && _.findLast(MEMRISE.garden.boxes._list, function(i) {
-	                return i.answered === true &&
-	                    i.autoLearn === true &&
-	                    i.learnable_id === thinguser.learnable_id;
-	            }),
-	            isValidRequest = !!(thinguser && correctAnswer && canUpdate && box && thinguser.growth_level < 6);
+	    function(event, request, settings,dt) {
 
-	        if (isValidRequest) {
-				console.log('compleate');
-	            var hasGrown = getValue(settings.data, "growth_level") != thinguser.growth_level;
-	            settings.data = settings.data.replace(/points=\d+(&growth_level=\d+){0,1}/, "points=0&growth_level=" + thinguser.growth_level);
-	            if(hasGrown){
-	                var autoLearnCount = thinguser.growth_level - (box.thinguser === null ? 0 : box.thinguser.growth_level) + 1;
-	                MEMRISE.garden.stats.show_message("Auto Learn +" + autoLearnCount);
-	            }
-	            setTimeout(function(){
-	                $.post(settings.url, settings.data);
-	            }, 300);
-	        }
+			if(settings.url=='/api/garden/register/'){
+				var t=/learnable_id=(\d+)/;
+				var t=settings.data.match(t);
+				if(t[1]!=undefined&&grown_items.indexOf(t[1])==-1){
+					var li=t[1];
+					var thinguser = request.responseJSON && request.responseJSON.thinguser;
+					for(var index in MEMRISE.garden.boxes._list)if(MEMRISE.garden.boxes._list[index].learnable_id==li)break;
+					var box=thinguser && MEMRISE.garden.boxes._list[index];
+					if((['typing','tapping','multiple_choice']).indexOf(MEMRISE.garden.boxes._list[index].template)&&thinguser){
+						grown_items.push(li);
+						var hasGrown = getValue(settings.data, "growth_level") != thinguser.growth_level;
+			            settings.data = settings.data.replace(/points=\d+(&growth_level=\d+){0,1}/, "points=0&growth_level=" + thinguser.growth_level);
+			            if(hasGrown){
+			                var autoLearnCount = thinguser.growth_level - (box.thinguser === null ? 0 : box.thinguser.growth_level) + 1;
+			                MEMRISE.garden.stats.show_message("Auto Learn +" + autoLearnCount);
+			            }
+			            setTimeout(function(){
+			                $.post(settings.url, settings.data);
+			            }, 300);
+					}
+				}
+			}
 	    }
 	);
 
